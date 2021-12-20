@@ -2,22 +2,26 @@
 
 import * as THREE from "../Libraries/three.js-master/build/three.module.js";
 import { PointerLockControls } from '../Libraries/three.js-master/examples/jsm/controls/PointerLockControls.js';
+import { GLTFLoader } from '../Libraries/three.js-master/examples/jsm/loaders/GLTFLoader.js';
 
-const THRUST = 100;
+const THRUST = 40;
 const TURNRATE = 1;
 const FOV = 75;
 
 let camera, topCamera, weaponCamera;
-let renderer, scene, controls;
+let renderer, scene, controls, manager;
 
-let inGame = true;
+let inGame = false;
 let prevTime = performance.now();
 let velocity = new THREE.Vector3();
 let acceleration = new THREE.Vector3();
 let ship;
+let velocityArrow;
 let weaponView = false;
+let enemies = [];
 
 let accelerate, turnLeft, turnRight = false;
+let canShoot = true;
 
 function main() {
 	// Setting up the renderer
@@ -31,6 +35,14 @@ function main() {
 	window.addEventListener('resize', onWindowResize);
 	document.addEventListener('keydown', onKeyDown);
 	document.addEventListener('keyup', onKeyUp);
+	document.addEventListener('mousedown', shoot);
+	document.addEventListener('mouseup', onMouseUp);
+
+	// Set up loading manager
+	manager = new THREE.LoadingManager();
+	manager.onLoad = function() {
+		inGame = true;
+	};
 
 	// Set up the scene
 	scene = new THREE.Scene();
@@ -84,6 +96,15 @@ function onKeyUp(event) {
 	}
 }
 
+function onMouseDown() {
+	shoot = true;
+}
+
+function onMouseUp() {
+	shoot = false;
+	canShoot = true;
+}
+
 function init(scene) {
 	// Setup camera
 	// camera = new THREE.OrthographicCamera(
@@ -96,11 +117,12 @@ function init(scene) {
 	// );
 	
 	topCamera = new THREE.PerspectiveCamera(FOV, window.innerWidth/window.innerHeight,0.1,1000)
-	topCamera.position.y = 1000;
+	topCamera.position.y = 200;
 	topCamera.lookAt(0, 0, 0);
+	topCamera.layers.enable(1);
 
 	weaponCamera = new THREE.PerspectiveCamera(FOV, window.innerWidth/window.innerHeight,0.1,1000)
-	weaponCamera.position.y = 11;
+	weaponCamera.position.y = 3.5;
 
 	camera = topCamera;
 
@@ -120,12 +142,32 @@ function init(scene) {
 	scene.add(pointLight);
 
 	// Objects
-	let shipGeometry = new THREE.BoxGeometry(10, 10, 35);
-	let shipMaterial = new THREE.MeshStandardMaterial({
-		color: 0xFFFFFF
+	const crosshairTexture = new THREE.TextureLoader(manager).load( '../Assets/crosshair.png' );
+	const crosshairMaterial = new THREE.SpriteMaterial( { map: crosshairTexture } );
+	const crosshair = new THREE.Sprite(crosshairMaterial);
+	crosshair.scale.set(0.1, 0.1, 0.1);
+	crosshair.translateZ(-1);
+	weaponCamera.add(crosshair);
+	// Cameras don't usually have to be added to the scene, but since it has a child it must be
+	scene.add(weaponCamera);
+
+	const loader = new GLTFLoader(manager).setPath('../Assets/models/');
+	loader.load('ship.glb', function (gltf) {
+		ship = gltf.scene;
+		scene.add(ship);
 	});
-	ship = new THREE.Mesh(shipGeometry, shipMaterial);
-	scene.add(ship);
+	velocityArrow = new THREE.ArrowHelper(new THREE.Vector3(1,0,0), new THREE.Vector3(), 100, 0xbbffbb);
+	velocityArrow.traverse(function(node) {
+		// set the arrow and it's children to layer 1
+		node.layers.set(1);
+	});
+	scene.add(velocityArrow);
+	// let shipGeometry = new THREE.BoxGeometry(10, 10, 35);
+	// let shipMaterial = new THREE.MeshStandardMaterial({
+		// color: 0xFFFFFF
+	// });
+	// ship = new THREE.Mesh(shipGeometry, shipMaterial);
+	// scene.add(ship);
 
 	loadLevel1();
 }
@@ -141,8 +183,18 @@ function loadLevel1() {
 		'../Assets/skyboxes/blue/bkg1_back.png'
 	];
 
-	let cubeLoader = new THREE.CubeTextureLoader();
+	let cubeLoader = new THREE.CubeTextureLoader(manager);
 	scene.background = cubeLoader.load(skyboxTextures);
+	for (let i = 0; i < 10; i++) {
+		let shipGeometry = new THREE.BoxGeometry(10, 10, 35);
+		let shipMaterial = new THREE.MeshStandardMaterial({
+			color: 0xFFFFFF
+		});
+		let enemy = new THREE.Mesh(shipGeometry, shipMaterial);
+		enemy.position.set(i*10, 20, i*10);
+		enemies.push(enemy);
+		scene.add(enemy);
+	}
 }
 
 function onWindowResize() {
@@ -163,6 +215,25 @@ function switchView() {
 	} else {
 		weaponView = true;
 		camera = weaponCamera;
+	}
+}
+
+function shoot() {
+	console.log('shoot');
+	// We want to cast a ray in the direction the camera is facing
+	let direction = new THREE.Vector3();
+	camera.getWorldDirection(direction);
+	// convert from normalised viewing coordinates to world coordinates
+	// direction.unproject(weaponCamera); 
+	console.log(direction);
+	const arrowHelper = new THREE.ArrowHelper(direction, camera.position, 100, 0xff0000);
+	scene.add(arrowHelper);
+	const raycaster = new THREE.Raycaster(camera.position, direction.normalize());
+	let collisions = raycaster.intersectObjects(enemies, false);
+	console.log(collisions);
+	for (const c of collisions) {
+		c.object.material.color.r = 0;
+		console.log('collided with ' + c);
 	}
 }
 
@@ -191,9 +262,8 @@ function animate() {
 			// Get the direction of the ship and accelerate in that direction
 			let matrix = new THREE.Matrix4();
 			matrix.extractRotation(ship.matrix);
-			let direction = new THREE.Vector3(0, 0, -1);
+			let direction = new THREE.Vector3(1, 0, 0);
 			acceleration = direction.applyMatrix4(matrix).multiplyScalar(THRUST);
-			console.log(acceleration);
 		}
 
 		// update ship velocity
@@ -203,9 +273,17 @@ function animate() {
 		// update ship position
 		ship.position.x += velocity.x * delta;
 		ship.position.z += velocity.z * delta;
-		// update camera position
+		// update camera positions
 		weaponCamera.position.x += velocity.x * delta;
 		weaponCamera.position.z += velocity.z * delta;
+		topCamera.position.x += velocity.x * delta;
+		topCamera.position.z += velocity.z * delta;
+
+		// update velocity arrow
+		velocityArrow.setDirection(velocity);
+		velocityArrow.setLength(velocity.length(), 5, 2);
+		velocityArrow.position.x += velocity.x * delta;
+		velocityArrow.position.z += velocity.z * delta;
 	}
 
 	render();
