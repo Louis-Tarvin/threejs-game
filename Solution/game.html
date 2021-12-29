@@ -11,10 +11,64 @@ canvas {
 	height: 100vh;
 	display: block;
 }
+#loading {
+	text-align: center;
+	width: 100%;
+}
+#blocker {
+	position: absolute;
+	width: 100%;
+	height: 100%;
+	background-color: rgba(0,0,0,0.5);
+	display: none;
+}
+
+#instructions {
+	width: 100%;
+	height: 100%;
+
+	display: none;
+	flex-direction: column;
+	justify-content: center;
+	align-items: center;
+
+	text-align: center;
+	font-size: 14px;
+	cursor: pointer;
+
+	color: white;
+}
 		</style>
 	</head>
 	<body>
-		<canvas id="gl-canvas"></canvas>
+		<h1 id="loading">LOADING...</h1>
+		<div id="blocker">
+			<div id="instructions">
+				<h1>Star Strike</h1>
+				<p style="font-size:36px">
+					Click to play
+				</p>
+				<p style="font-size:30px">
+					Flight mode controls:
+				</p>
+				<p>
+					Thrust: W<br/>
+					Turn left: A<br/>
+					Turn right: D<br/>
+				</p>
+				<p style="font-size:30px">
+					Weapon mode controls:
+				</p>
+				<p>
+					Fire: Left click<br/>
+					Look: MOUSE
+				</p>
+				<p style="font-size:30px">
+					Switch between flight and weapon mode: SPACE
+				</p>
+			</div>
+		</div>
+		<!-- <canvas id="gl-canvas"></canvas> -->
 		<script charset="utf-8" type="module" src="main.js"></script>
 	</body>
 </html>
