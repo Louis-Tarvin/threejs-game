@@ -1,0 +1,24 @@
+{
+  "name": "webgl-game",
+  "version": "1.0.0",
+  "description": "",
+  "main": "game.html",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Louis-Tarvin/threejs-game.git"
+  },
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/Louis-Tarvin/threejs-game/issues"
+  },
+  "homepage": "https://github.com/Louis-Tarvin/threejs-game#readme",
+  "devDependencies": {
+    "eslint": "^8.5.0",
+    "eslint-config-airbnb-base": "^15.0.0",
+    "eslint-plugin-import": "^2.25.3"
+  }
+}

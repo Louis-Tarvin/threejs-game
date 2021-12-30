@@ -1,6 +1,6 @@
-"use strict"
+'use strict';
 
-import * as THREE from "../Libraries/three.js-master/build/three.module.js";
+import * as THREE from '../Libraries/three.js-master/build/three.module.js';
 import { PointerLockControls } from '../Libraries/three.js-master/examples/jsm/controls/PointerLockControls.js';
 import { GLTFLoader } from '../Libraries/three.js-master/examples/jsm/loaders/GLTFLoader.js';
 import { EffectComposer } from '../Libraries/three.js-master/examples/jsm/postprocessing/EffectComposer.js';
@@ -10,18 +10,22 @@ import { UnrealBloomPass } from '../Libraries/three.js-master/examples/jsm/postp
 const THRUST = 40;
 const TURNRATE = 1.5;
 const FOV = 75;
+const PROJECTILE_SPEED = 15;
 
 let camera, topCamera, weaponCamera;
 let composer, topCameraComposer, weaponCameraComposer;
 let renderer, scene, controls, manager;
+let bgm, shootSound, explosionSound, impactSound;
 
 let inGame = false;
 let loaded = false;
+let gameIsOver = false;
 let prevTime = performance.now();
 let velocity = new THREE.Vector3();
 let acceleration = new THREE.Vector3();
 let ship, turret, boundingBox, missile;
 let health = 10;
+let shootCooldown = 1;
 let velocityArrow;
 let weaponView = false;
 let enemies = [];
@@ -32,7 +36,7 @@ let accelerate, turnLeft, turnRight = false;
 
 function main() {
 	// Setting up the renderer
-	let canvas = document.getElementById("gl-canvas");
+	//let canvas = document.getElementById('gl-canvas');
 
 	renderer = new THREE.WebGLRenderer({ antialias: true });
 	renderer.setPixelRatio(window.devicePixelRatio);
@@ -53,6 +57,7 @@ function main() {
 			document.getElementById('loading').style.display = 'none';
 			document.getElementById('instructions').style.display = 'flex';
 			document.getElementById('blocker').style.display = 'block';
+			bgm.play();
 		}
 	};
 
@@ -67,55 +72,61 @@ function main() {
 function onKeyDown(event) {
 	switch(event.code) {
 		
-		case 'ArrowUp':
-		case 'KeyW':
+	case 'ArrowUp':
+	case 'KeyW':
+		if (!weaponView) {
 			accelerate = true;
-			break;
+		}
+		break;
 
-		case 'ArrowLeft':
-		case 'KeyA':
+	case 'ArrowLeft':
+	case 'KeyA':
+		if (!weaponView) {
 			turnLeft = true;
-			break;
+		}
+		break;
 
-		case 'ArrowRight':
-		case 'KeyD':
+	case 'ArrowRight':
+	case 'KeyD':
+		if (!weaponView) {
 			turnRight = true;
-			break;
+		}
+		break;
 	}
 }
 
 function onKeyUp(event) {
 	switch(event.code) {
 		
-		case 'ArrowUp':
-		case 'KeyW':
-			accelerate = false;
-			break;
+	case 'ArrowUp':
+	case 'KeyW':
+		accelerate = false;
+		break;
 
-		case 'ArrowLeft':
-		case 'KeyA':
-			turnLeft = false;
-			break;
+	case 'ArrowLeft':
+	case 'KeyA':
+		turnLeft = false;
+		break;
 
-		case 'ArrowRight':
-		case 'KeyD':
-			turnRight = false;
-			break;
+	case 'ArrowRight':
+	case 'KeyD':
+		turnRight = false;
+		break;
 
-		case 'Space':
-			switchView();
-			break;
+	case 'Space':
+		switchView();
+		break;
 	}
 }
 
 function init(scene) {
 	// Create cameras
-	topCamera = new THREE.PerspectiveCamera(FOV, window.innerWidth/window.innerHeight,0.1,1000)
+	topCamera = new THREE.PerspectiveCamera(FOV, window.innerWidth/window.innerHeight,0.1,1000);
 	topCamera.position.y = 200;
 	topCamera.lookAt(0, 0, 0);
 	topCamera.layers.enable(1);
 
-	weaponCamera = new THREE.PerspectiveCamera(FOV, window.innerWidth/window.innerHeight,0.1,1000)
+	weaponCamera = new THREE.PerspectiveCamera(FOV, window.innerWidth/window.innerHeight,0.1,1000);
 	weaponCamera.position.y = 3.5;
 
 	camera = topCamera;
@@ -123,6 +134,7 @@ function init(scene) {
 	// Setup first person controls for weapon view
 	const instructions = document.getElementById('instructions');
 	const blocker = document.getElementById('blocker');
+	const health = document.getElementById('health-container');
 	controls = new PointerLockControls( weaponCamera, document.body );
 	controls.constrainVertical = true;
 	controls.lookSpeed = 0.5;
@@ -132,14 +144,16 @@ function init(scene) {
 		inGame = true;
 	});
 	controls.addEventListener('lock', function () {
-		console.log('lock');
 		instructions.style.display = 'none';
 		blocker.style.display = 'none';
+		health.style.display = 'block';
 	});
 	controls.addEventListener('unlock', function () {
-		console.log('unlock');
-		blocker.style.display = 'block';
-		instructions.style.display = 'flex';
+		if (!gameIsOver) {
+			blocker.style.display = 'block';
+			instructions.style.display = 'flex';
+			health.style.display = 'none';
+		}
 	});
 
 	// Set up bloom post processing
@@ -158,7 +172,7 @@ function init(scene) {
 	composer = topCameraComposer;
 
 	// Light sources
-	let ambientLight = new THREE.AmbientLight(0xDDDDFF, 0.4);
+	let ambientLight = new THREE.AmbientLight(0xDDDDFF, 0.8);
 	scene.add(ambientLight);
 
 	// Objects
@@ -180,6 +194,7 @@ function init(scene) {
 		const colliderGeometry = new THREE.BoxGeometry(20, 10, 8);
 		boundingBox = new THREE.Mesh(colliderGeometry, transparent);
 		boundingBox.translateX(2);
+		boundingBox.translateY(-2);
 		ship.add(boundingBox);
 		boundingBox.updateMatrixWorld();
 		console.log(boundingBox);
@@ -200,6 +215,33 @@ function init(scene) {
 		node.layers.set(1);
 	});
 	scene.add(velocityArrow);
+
+	// Audio
+	// Add AudioListener to cameras
+	const listener = new THREE.AudioListener();
+	topCamera.add(listener);
+	weaponCamera.add(listener);
+	// Create global audio source
+	bgm = new THREE.Audio(listener);
+	const audioLoader = new THREE.AudioLoader();
+	audioLoader.load('../Assets/audio/bgm.wav', function(buffer) {
+		bgm.setBuffer(buffer);
+		bgm.setLoop(true);
+		bgm.setVolume(0.5);
+	});
+	shootSound = new THREE.Audio(listener);
+	audioLoader.load('../Assets/audio/shot.wav', function(buffer) {
+		shootSound.setBuffer(buffer);
+		shootSound.setVolume(0.5);
+	});
+	explosionSound = new THREE.Audio(listener);
+	audioLoader.load('../Assets/audio/explosion.wav', function(buffer) {
+		explosionSound.setBuffer(buffer);
+	});
+	impactSound = new THREE.Audio(listener);
+	audioLoader.load('../Assets/audio/impact.wav', function(buffer) {
+		impactSound.setBuffer(buffer);
+	});
 
 	loadLevel1();
 }
@@ -243,7 +285,7 @@ function loadLevel1() {
 
 	// Create enemy ships
 	const loader = new GLTFLoader(manager).setPath('../Assets/models/');
-	loader.load('enemy2.glb', function (gltf) {
+	loader.load('enemy3.glb', function (gltf) {
 		let enemy = gltf.scene;
 		const transparent = new THREE.MeshBasicMaterial({ transparent: true, opacity: 0.0 });
 		for (let i = 0; i < 10; i++) {
@@ -276,6 +318,8 @@ function onWindowResize() {
 	topCamera.updateProjectionMatrix();
 	weaponCamera.updateProjectionMatrix();
 	renderer.setSize(window.innerWidth, window.innerHeight);
+	topCameraComposer.setSize(window.innerWidth, window.innerHeight);
+	weaponCameraComposer.setSize(window.innerWidth, window.innerHeight);
 }
 
 function switchView() {
@@ -292,43 +336,56 @@ function switchView() {
 }
 
 function shoot() {
-	// We want to cast a ray in the direction the camera is facing
-	let direction = new THREE.Vector3();
-	camera.getWorldDirection(direction);
+	if (weaponView && shootCooldown <= 0) {
+		// Reset timer
+		shootCooldown = 0.5;
 
-	// Create flash
-	const flashTexture = new THREE.TextureLoader(manager).load( '../Assets/flash.png' );
-	const flashMaterial = new THREE.SpriteMaterial( { map: flashTexture } );
-	const flash = new THREE.Sprite(flashMaterial);
-	flash.translateZ(-5);
-	flash.translateY(-0.8);
-	let flashLight = new THREE.PointLight(0xFF7777, 0.7, 10, 2);
-	flashLight.translateZ(-5);
-	flashLight.translateY(-0.8);
-	flash.userData = { destructionTimer: 0.1 };
-	flashLight.userData = { destructionTimer: 0.1 };
-	toDestroy.push(flash);
-	toDestroy.push(flashLight);
-	weaponCamera.add(flash);
-	weaponCamera.add(flashLight);
+		// Play sound effect
+		shootSound.play();
 
-	// Check for collision with enemy ships by casting a ray
-	const raycaster = new THREE.Raycaster(camera.position, direction.normalize());
-	let collisions = raycaster.intersectObjects(enemies, true);
-	for (const c of collisions) {
-		c.object.userData.health -= 1;
-		console.log('collided with ' + c);
-		console.log('health now ' + c.object.userData.health);
-		if (c.object.userData.health <= 0) {
-			// Enemy health is 0 -> destroy the ship
-			scene.remove(c.object.parent);
-			enemies.splice(enemies.indexOf(c.object.parent), 1);
+		// Create flash
+		const flashTexture = new THREE.TextureLoader(manager).load( '../Assets/flash.png' );
+		const flashMaterial = new THREE.SpriteMaterial( { map: flashTexture } );
+		const flash = new THREE.Sprite(flashMaterial);
+		flash.translateZ(-5);
+		flash.translateY(-0.8);
+		let flashLight = new THREE.PointLight(0xFF7777, 0.7, 10, 2);
+		flashLight.translateZ(-5);
+		flashLight.translateY(-0.8);
+		flash.userData = { destructionTimer: 0.1 };
+		flashLight.userData = { destructionTimer: 0.1 };
+		toDestroy.push(flash);
+		toDestroy.push(flashLight);
+		weaponCamera.add(flash);
+		weaponCamera.add(flashLight);
+
+		// We want to cast a ray in the direction the camera is facing
+		let direction = new THREE.Vector3();
+		camera.getWorldDirection(direction);
+		// Check for collision with enemy ships by casting a ray
+		const raycaster = new THREE.Raycaster(camera.position, direction.normalize());
+		let collisions = raycaster.intersectObjects(enemies, true);
+		for (const c of collisions) {
+			c.object.userData.health -= 1;
+			console.log('collided with ' + c);
+			console.log('health now ' + c.object.userData.health);
+			if (c.object.userData.health <= 0) {
+				// Enemy health is 0 -> destroy the ship
+				scene.remove(c.object.parent);
+				enemies.splice(enemies.indexOf(c.object.parent), 1);
+				explosionSound.play();
+			}
 		}
 	}
 }
 
 function gameOver() {
 	inGame = false;
+	gameIsOver = true;
+	renderer.domElement.style.display = 'none';
+	document.getElementById('gameover').style.display = 'block';
+	controls.unlock();
+	document.getElementById('blocker').style.display = 'none';
 }
 
 function render() {
@@ -379,6 +436,9 @@ function animate() {
 		velocityArrow.position.x += velocity.x * delta;
 		velocityArrow.position.z += velocity.z * delta;
 
+		// update shoot timer
+		shootCooldown -= delta;
+
 		// update enemy ships 
 		for (const e of enemies) {
 			// look at player
@@ -405,7 +465,7 @@ function animate() {
 				let matrix = new THREE.Matrix4();
 				matrix.extractRotation(e.matrix);
 				let direction = new THREE.Vector3(0, 0, 1);
-				direction = direction.applyMatrix4(matrix).multiplyScalar(10);
+				direction = direction.applyMatrix4(matrix).multiplyScalar(PROJECTILE_SPEED);
 				// add projectile to scene
 				projectiles.push({
 					object: projectile,
@@ -441,7 +501,9 @@ function animate() {
 			let intersects = raycaster.intersectObject(boundingBox, false);
 			if (intersects.length > 0) {
 				health -= 1;
-				console.log("player hit");
+				impactSound.play();
+				document.getElementById('health').innerHTML = 'Health: ' + health;
+				console.log('player hit');
 				scene.remove(p.object);
 				projectiles.splice(i, 1);
 				if (health <= 0) {
