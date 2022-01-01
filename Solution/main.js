@@ -18,7 +18,6 @@ let composer, topCameraComposer, weaponCameraComposer;
 let renderer, scene, controls, manager;
 let bgm, shootSound, explosionSound, impactSound;
 let mixer;
-let gameDomElement;
 
 let inGame = false;
 let loaded = false;
@@ -59,7 +58,7 @@ function main() {
 	manager.onLoad = function() {
 		if (!loaded) {
 			loaded = true;
-			gameDomElement = document.body.appendChild(renderer.domElement);
+			document.body.appendChild(renderer.domElement);
 			document.getElementById('loading').style.display = 'none';
 			document.getElementById('instructions').style.display = 'flex';
 			document.getElementById('blocker').style.display = 'block';
@@ -344,6 +343,8 @@ function loadLevel2() {
 	health = 10;
 	controls.unlock();
 	ship.position.set(0,0,0);
+	weaponCamera.position.set(0,3.5,0);
+	topCamera.position.set(0,200,0);
 
 	// Create skybox
 	let skyboxTextures = [
@@ -509,6 +510,7 @@ function gameOver() {
 function gameWon() {
 	// Unload all objects
 	inGame = false;
+	gameIsOver = true;
 	let canvas = document.getElementsByTagName('canvas')[0];
 	canvas.parentNode.removeChild(canvas);
 	for (const o of levelObjects) {
