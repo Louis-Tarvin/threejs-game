@@ -10,24 +10,30 @@ import { UnrealBloomPass } from '../Libraries/three.js-master/examples/jsm/postp
 const THRUST = 40;
 const TURNRATE = 1.5;
 const FOV = 75;
-const PROJECTILE_SPEED = 15;
+const PROJECTILE_SPEED_1 = 15;
+const PROJECTILE_SPEED_2 = 50;
 
 let camera, topCamera, weaponCamera;
 let composer, topCameraComposer, weaponCameraComposer;
 let renderer, scene, controls, manager;
 let bgm, shootSound, explosionSound, impactSound;
+let mixer;
+let gameDomElement;
 
 let inGame = false;
 let loaded = false;
 let gameIsOver = false;
+let isLevel1 = true;
 let prevTime = performance.now();
 let velocity = new THREE.Vector3();
 let acceleration = new THREE.Vector3();
-let ship, turret, boundingBox, missile;
+let ship, turret, boundingBox;
+let missile, missileAnimationGroup;
 let health = 10;
 let shootCooldown = 1;
 let velocityArrow;
 let weaponView = false;
+let levelObjects = [];
 let enemies = [];
 let projectiles = [];
 let toDestroy = [];
@@ -53,11 +59,10 @@ function main() {
 	manager.onLoad = function() {
 		if (!loaded) {
 			loaded = true;
-			document.body.appendChild(renderer.domElement);
+			gameDomElement = document.body.appendChild(renderer.domElement);
 			document.getElementById('loading').style.display = 'none';
 			document.getElementById('instructions').style.display = 'flex';
 			document.getElementById('blocker').style.display = 'block';
-			bgm.play();
 		}
 	};
 
@@ -142,6 +147,7 @@ function init(scene) {
 	instructions.addEventListener('click', function() {
 		controls.lock();
 		inGame = true;
+		bgm.play();
 	});
 	controls.addEventListener('lock', function () {
 		instructions.style.display = 'none';
@@ -207,6 +213,12 @@ function init(scene) {
 	});
 	loader.load('missile.glb', function (gltf) {
 		missile = gltf.scene;
+		// play spinning animation
+		let missileAnimation = gltf.animations[0];
+		missileAnimationGroup = new THREE.AnimationObjectGroup();
+		missileAnimationGroup.add(missile);
+		mixer = new THREE.AnimationMixer(missileAnimationGroup);
+		mixer.clipAction(missileAnimation).play();
 	});
 	// Arrow showing the velocity vector of the player
 	velocityArrow = new THREE.ArrowHelper(new THREE.Vector3(1,0,0), new THREE.Vector3(0,4,0), 100, 0xbbffbb);
@@ -282,6 +294,92 @@ function loadLevel1() {
 	let star2Light = new THREE.PointLight(0xFFBBBB, 2, 0, 2);
 	star2Light.position.set(-100,120,120);
 	scene.add(star2Light);
+	levelObjects.push(star1, star2, star1Light, star2Light);
+
+	// Create enemy ships
+	const loader = new GLTFLoader(manager).setPath('../Assets/models/');
+	loader.load('enemy3.glb', function (gltf) {
+		let enemy = gltf.scene;
+		const transparent = new THREE.MeshBasicMaterial({ transparent: true, opacity: 0.0 });
+		for (let i = 0; i < 2; i++) {
+			// Add 10 enemy ships at random positions
+			let enemyClone = enemy.clone();
+			let position = new THREE.Vector3(
+				Math.random() * 600 - 300,
+				Math.random() * 5 + 10,
+				Math.random() * 600 - 300
+			);
+			enemyClone.position.set(position.x, position.y, position.z);
+			const colliderGeometry = new THREE.BoxGeometry(9, 7, 10);
+			const enemyBoundingBox = new THREE.Mesh(colliderGeometry, transparent);
+			enemyBoundingBox.translateZ(-5);
+			enemyBoundingBox.translateY(2);
+			enemyBoundingBox.userData = { health: 5 };
+			enemyClone.add(enemyBoundingBox);
+			enemyClone.userData = { shootCooldown: Math.random() * 10 + 4 };
+			enemies.push(enemyClone);
+			scene.add(enemyClone);
+		}
+	});
+}
+
+function loadLevel2() {
+	isLevel1 = false;
+
+	// Unload level 1 elements
+	document.getElementById('loading').style.display = 'block';
+	let canvas = document.getElementsByTagName('canvas')[0];
+	canvas.parentNode.removeChild(canvas);
+	for (const o of levelObjects) {
+		removeObjectFromScene(o);
+	}
+	for (const o of projectiles) {
+		removeObjectFromScene(o);
+	}
+
+	// Reset state variables
+	loaded = false;
+	switchView();
+	inGame = false;
+	health = 10;
+	controls.unlock();
+	ship.position.set(0,0,0);
+
+	// Create skybox
+	let skyboxTextures = [
+		'../Assets/skyboxes/red/bkg_right.png',
+		'../Assets/skyboxes/red/bkg_left.png',
+		'../Assets/skyboxes/red/bkg_top.png',
+		'../Assets/skyboxes/red/bkg_bottom.png',
+		'../Assets/skyboxes/red/bkg_front.png',
+		'../Assets/skyboxes/red/bkg_back.png'
+	];
+
+	let cubeLoader = new THREE.CubeTextureLoader(manager);
+	let cubeTexture = cubeLoader.load(skyboxTextures);
+	scene.background = cubeTexture;
+	scene.environment = cubeTexture;
+
+	// Create Stars
+	let starGeometry = new THREE.SphereGeometry(100, 50, 50);
+	const textureLoader = new THREE.TextureLoader();
+	let starMaterial = new THREE.MeshBasicMaterial({ map: textureLoader.load('../Assets/sun2.jpg') });
+	let star1 = new THREE.Mesh(starGeometry, starMaterial);
+	star1.position.set(20, -120, -5);
+	star1.rotateX(1.55);
+	scene.add(star1);
+	let star2 = new THREE.Mesh(starGeometry, starMaterial);
+	star2.position.set(-100, 320, 120);
+	star2.rotateX(-1.55);
+	scene.add(star2);
+	// add strong point light for stars
+	let star1Light = new THREE.PointLight(0xFFBBBB, 2, 0, 2);
+	star1Light.position.set(0,-120,0);
+	scene.add(star1Light);
+	let star2Light = new THREE.PointLight(0xFFBBBB, 2, 0, 2);
+	star2Light.position.set(-100,120,120);
+	scene.add(star2Light);
+	levelObjects.push(star1, star2, star1Light, star2Light);
 
 	// Create enemy ships
 	const loader = new GLTFLoader(manager).setPath('../Assets/models/');
@@ -308,6 +406,17 @@ function loadLevel1() {
 			scene.add(enemyClone);
 		}
 	});
+}
+
+function removeObjectFromScene(o) {
+	// Properly dispose of object and remove from scene
+	if (o.geometry) {
+		o.geometry.dispose();
+	}
+	if (o.material) {
+		o.material.dispose();
+	}
+	scene.remove(o);
 }
 
 function onWindowResize() {
@@ -374,6 +483,15 @@ function shoot() {
 				scene.remove(c.object.parent);
 				enemies.splice(enemies.indexOf(c.object.parent), 1);
 				explosionSound.play();
+
+				// Check if level has been completed
+				if (enemies.length == 0) {
+					if (isLevel1) {
+						loadLevel2();
+					} else {
+						gameWon();
+					}
+				}
 			}
 		}
 	}
@@ -385,6 +503,25 @@ function gameOver() {
 	renderer.domElement.style.display = 'none';
 	document.getElementById('gameover').style.display = 'block';
 	controls.unlock();
+	document.getElementById('blocker').style.display = 'none';
+}
+
+function gameWon() {
+	// Unload all objects
+	inGame = false;
+	let canvas = document.getElementsByTagName('canvas')[0];
+	canvas.parentNode.removeChild(canvas);
+	for (const o of levelObjects) {
+		removeObjectFromScene(o);
+	}
+	for (const o of projectiles) {
+		removeObjectFromScene(o);
+	}
+	removeObjectFromScene(ship);
+	controls.unlock();
+	document.getElementById('gamewon').style.display = 'block';
+	document.getElementById('health-container').style.display = 'none';
+	document.getElementById('instructions').style.display = 'none';
 	document.getElementById('blocker').style.display = 'none';
 }
 
@@ -439,10 +576,21 @@ function animate() {
 		// update shoot timer
 		shootCooldown -= delta;
 
+		// update animations
+		if (mixer) mixer.update(delta);
+
 		// update enemy ships 
 		for (const e of enemies) {
-			// look at player
-			e.lookAt(ship.position);
+			let target;
+			if (isLevel1) {
+				// look at player
+				target = ship.position;
+			} else {
+				// look in front of player
+				target = ship.position.clone();
+				target.add(velocity.clone().multiplyScalar(2));
+			}
+			e.lookAt(target);
 			// if enough time has passed: shoot
 			e.userData.shootCooldown -= delta;
 			if (e.userData.shootCooldown <= 0) {
@@ -450,6 +598,7 @@ function animate() {
 				e.userData.shootCooldown += 8;
 				// create projectile
 				let projectile = missile.clone();
+				missileAnimationGroup.add(projectile);
 				// let material = new THREE.MeshStandardMaterial();
 				// let geometry = new THREE.BoxGeometry(1, 1, 1);
 				// let mesh = new THREE.Mesh(geometry, material);
@@ -458,14 +607,14 @@ function animate() {
 					e.position.y,
 					e.position.z
 				);
-				projectile.lookAt(ship.position);
+				projectile.lookAt(target);
 				projectile.rotateOnAxis(new THREE.Vector3(1,0,0), 1.5708);
 				projectile.scale.set(0.8, 0.8, 0.8);
 				// get the direction vector of the enemy ship
 				let matrix = new THREE.Matrix4();
 				matrix.extractRotation(e.matrix);
 				let direction = new THREE.Vector3(0, 0, 1);
-				direction = direction.applyMatrix4(matrix).multiplyScalar(PROJECTILE_SPEED);
+				direction = direction.applyMatrix4(matrix).multiplyScalar(isLevel1 ? PROJECTILE_SPEED_1 : PROJECTILE_SPEED_2);
 				// add projectile to scene
 				projectiles.push({
 					object: projectile,
@@ -490,6 +639,9 @@ function animate() {
 			// update projectile positions
 			p.object.position.x += p.velocity.x * delta;
 			p.object.position.y += p.velocity.y * delta;
+			if (p.object.position.y < 0) {
+				p.object.position.y = 0;
+			}
 			p.object.position.z += p.velocity.z * delta;
 
 			// check for collision with player
