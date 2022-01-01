@@ -1,11 +1,11 @@
 'use strict';
 
-import * as THREE from '../Libraries/three.js-master/build/three.module.js';
-import { PointerLockControls } from '../Libraries/three.js-master/examples/jsm/controls/PointerLockControls.js';
-import { GLTFLoader } from '../Libraries/three.js-master/examples/jsm/loaders/GLTFLoader.js';
-import { EffectComposer } from '../Libraries/three.js-master/examples/jsm/postprocessing/EffectComposer.js';
-import { RenderPass } from '../Libraries/three.js-master/examples/jsm/postprocessing/RenderPass.js';
-import { UnrealBloomPass } from '../Libraries/three.js-master/examples/jsm/postprocessing/UnrealBloomPass.js';
+import * as THREE from '../Libraries/three.js/build/three.module.js';
+import { PointerLockControls } from '../Libraries/three.js/examples/jsm/controls/PointerLockControls.js';
+import { GLTFLoader } from '../Libraries/three.js/examples/jsm/loaders/GLTFLoader.js';
+import { EffectComposer } from '../Libraries/three.js/examples/jsm/postprocessing/EffectComposer.js';
+import { RenderPass } from '../Libraries/three.js/examples/jsm/postprocessing/RenderPass.js';
+import { UnrealBloomPass } from '../Libraries/three.js/examples/jsm/postprocessing/UnrealBloomPass.js';
 
 const THRUST = 40;
 const TURNRATE = 1.5;
@@ -41,8 +41,6 @@ let accelerate, turnLeft, turnRight = false;
 
 function main() {
 	// Setting up the renderer
-	//let canvas = document.getElementById('gl-canvas');
-
 	renderer = new THREE.WebGLRenderer({ antialias: true });
 	renderer.setPixelRatio(window.devicePixelRatio);
 	renderer.setSize(window.innerWidth, window.innerHeight);
@@ -118,7 +116,9 @@ function onKeyUp(event) {
 		break;
 
 	case 'Space':
-		switchView();
+		if (inGame) {
+			switchView();
+		}
 		break;
 	}
 }
@@ -191,7 +191,7 @@ function init(scene) {
 	scene.add(weaponCamera);
 
 	const loader = new GLTFLoader(manager).setPath('../Assets/models/');
-	loader.load('ship_8.gltf', function (gltf) {
+	loader.load('ship.gltf', function (gltf) {
 		ship = gltf.scene;
 		scene.add(ship);
 		// Bounding box for the player ship. Invisible rect used for collision detection
@@ -202,9 +202,8 @@ function init(scene) {
 		boundingBox.translateY(-2);
 		ship.add(boundingBox);
 		boundingBox.updateMatrixWorld();
-		console.log(boundingBox);
 	});
-	loader.load('turret1.glb', function (gltf) {
+	loader.load('turret.glb', function (gltf) {
 		turret = gltf.scene;
 		turret.translateZ(-3);
 		turret.translateY(-1);
@@ -297,10 +296,10 @@ function loadLevel1() {
 
 	// Create enemy ships
 	const loader = new GLTFLoader(manager).setPath('../Assets/models/');
-	loader.load('enemy3.glb', function (gltf) {
+	loader.load('enemy.glb', function (gltf) {
 		let enemy = gltf.scene;
 		const transparent = new THREE.MeshBasicMaterial({ transparent: true, opacity: 0.0 });
-		for (let i = 0; i < 2; i++) {
+		for (let i = 0; i < 10; i++) {
 			// Add 10 enemy ships at random positions
 			let enemyClone = enemy.clone();
 			let position = new THREE.Vector3(
@@ -332,9 +331,11 @@ function loadLevel2() {
 	for (const o of levelObjects) {
 		removeObjectFromScene(o);
 	}
-	for (const o of projectiles) {
-		removeObjectFromScene(o);
+	console.log(projectiles);
+	for (let i = 0; i < projectiles.length; i++) {
+		removeObjectFromScene(projectiles[i].object);
 	}
+	projectiles = [];
 
 	// Reset state variables
 	loaded = false;
@@ -345,6 +346,11 @@ function loadLevel2() {
 	ship.position.set(0,0,0);
 	weaponCamera.position.set(0,3.5,0);
 	topCamera.position.set(0,200,0);
+	velocityArrow.position.set(0,0,0);
+	velocity.set(0,0,0);
+
+	// Set level description
+	document.getElementById('description').innerHTML = 'In this final stage enemy missiles now travel faster.<br>The enemies are also smarter. They will now fire at where you will be rather than where you currently are.';
 
 	// Create skybox
 	let skyboxTextures = [
@@ -363,7 +369,7 @@ function loadLevel2() {
 
 	// Create Stars
 	let starGeometry = new THREE.SphereGeometry(100, 50, 50);
-	const textureLoader = new THREE.TextureLoader();
+	const textureLoader = new THREE.TextureLoader(manager);
 	let starMaterial = new THREE.MeshBasicMaterial({ map: textureLoader.load('../Assets/sun2.jpg') });
 	let star1 = new THREE.Mesh(starGeometry, starMaterial);
 	star1.position.set(20, -120, -5);
@@ -384,7 +390,7 @@ function loadLevel2() {
 
 	// Create enemy ships
 	const loader = new GLTFLoader(manager).setPath('../Assets/models/');
-	loader.load('enemy3.glb', function (gltf) {
+	loader.load('enemy.glb', function (gltf) {
 		let enemy = gltf.scene;
 		const transparent = new THREE.MeshBasicMaterial({ transparent: true, opacity: 0.0 });
 		for (let i = 0; i < 10; i++) {
@@ -448,7 +454,7 @@ function switchView() {
 function shoot() {
 	if (weaponView && shootCooldown <= 0) {
 		// Reset timer
-		shootCooldown = 0.5;
+		shootCooldown = 0.3;
 
 		// Play sound effect
 		shootSound.play();
@@ -477,8 +483,6 @@ function shoot() {
 		let collisions = raycaster.intersectObjects(enemies, true);
 		for (const c of collisions) {
 			c.object.userData.health -= 1;
-			console.log('collided with ' + c);
-			console.log('health now ' + c.object.userData.health);
 			if (c.object.userData.health <= 0) {
 				// Enemy health is 0 -> destroy the ship
 				scene.remove(c.object.parent);
@@ -542,6 +546,7 @@ function animate() {
 	prevTime = time;
 
 	if (inGame) {
+		// Controls
 		if (turnLeft) {
 			ship.rotateY(0.01 * TURNRATE);
 		}
@@ -601,9 +606,6 @@ function animate() {
 				// create projectile
 				let projectile = missile.clone();
 				missileAnimationGroup.add(projectile);
-				// let material = new THREE.MeshStandardMaterial();
-				// let geometry = new THREE.BoxGeometry(1, 1, 1);
-				// let mesh = new THREE.Mesh(geometry, material);
 				projectile.position.set(
 					e.position.x,
 					e.position.y,
@@ -657,7 +659,6 @@ function animate() {
 				health -= 1;
 				impactSound.play();
 				document.getElementById('health').innerHTML = 'Health: ' + health;
-				console.log('player hit');
 				scene.remove(p.object);
 				projectiles.splice(i, 1);
 				if (health <= 0) {
