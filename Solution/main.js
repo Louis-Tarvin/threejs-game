@@ -8,7 +8,7 @@ import { RenderPass } from '../Libraries/three.js/examples/jsm/postprocessing/Re
 import { UnrealBloomPass } from '../Libraries/three.js/examples/jsm/postprocessing/UnrealBloomPass.js';
 
 const THRUST = 40;
-const TURNRATE = 1.5;
+const TURNRATE = 150;
 const FOV = 75;
 const PROJECTILE_SPEED_1 = 15;
 const PROJECTILE_SPEED_2 = 50;
@@ -548,10 +548,10 @@ function animate() {
 	if (inGame) {
 		// Controls
 		if (turnLeft) {
-			ship.rotateY(0.01 * TURNRATE);
+			ship.rotateY(0.01 * TURNRATE * delta);
 		}
 		if (turnRight) {
-			ship.rotateY(-0.01 * TURNRATE);
+			ship.rotateY(-0.01 * TURNRATE * delta);
 		}
 		if (accelerate) {
 			// Get the direction of the ship and accelerate in that direction
