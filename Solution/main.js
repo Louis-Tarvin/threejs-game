@@ -204,6 +204,7 @@ function init(scene) {
 		boundingBox.updateMatrixWorld();
 	});
 	loader.load('turret.glb', function (gltf) {
+		// Add the turret as a child of the weapon camera
 		turret = gltf.scene;
 		turret.translateZ(-3);
 		turret.translateY(-1);
@@ -221,7 +222,7 @@ function init(scene) {
 	// Arrow showing the velocity vector of the player
 	velocityArrow = new THREE.ArrowHelper(new THREE.Vector3(1,0,0), new THREE.Vector3(0,4,0), 100, 0xbbffbb);
 	velocityArrow.traverse(function(node) {
-		// set the arrow and it's children to layer 1
+		// set the arrow and it's children to layer 1 so it is only seen by the top camera
 		node.layers.set(1);
 	});
 	scene.add(velocityArrow);
@@ -233,6 +234,7 @@ function init(scene) {
 	weaponCamera.add(listener);
 	// Create global audio source
 	bgm = new THREE.Audio(listener);
+	// Load audio
 	const audioLoader = new THREE.AudioLoader();
 	audioLoader.load('../Assets/audio/bgm.wav', function(buffer) {
 		bgm.setBuffer(buffer);
@@ -256,6 +258,7 @@ function init(scene) {
 	loadLevel1();
 }
 
+// Load the first level
 function loadLevel1() {
 	// Create skybox
 	let skyboxTextures = [
@@ -276,7 +279,6 @@ function loadLevel1() {
 	let starGeometry = new THREE.SphereGeometry(100, 50, 50);
 	const textureLoader = new THREE.TextureLoader();
 	let starMaterial = new THREE.MeshBasicMaterial({ map: textureLoader.load('../Assets/sun.jpg') });
-	// let starMaterial = new THREE.MeshBasicMaterial();
 	let star1 = new THREE.Mesh(starGeometry, starMaterial);
 	star1.position.set(0, -120, 0);
 	star1.rotateX(1.55);
@@ -285,6 +287,7 @@ function loadLevel1() {
 	star2.position.set(-100, 320, 120);
 	star2.rotateX(-1.55);
 	scene.add(star2);
+
 	// add strong point light for stars
 	let star1Light = new THREE.PointLight(0xFFBBBB, 2, 0, 2);
 	star1Light.position.set(0,-120,0);
@@ -308,6 +311,7 @@ function loadLevel1() {
 				Math.random() * 600 - 300
 			);
 			enemyClone.position.set(position.x, position.y, position.z);
+			// Bounding box for the ship. Invisible rect used for collision detection
 			const colliderGeometry = new THREE.BoxGeometry(9, 7, 10);
 			const enemyBoundingBox = new THREE.Mesh(colliderGeometry, transparent);
 			enemyBoundingBox.translateZ(-5);
@@ -321,6 +325,7 @@ function loadLevel1() {
 	});
 }
 
+// Unload the first level then load the second level
 function loadLevel2() {
 	isLevel1 = false;
 
@@ -379,6 +384,7 @@ function loadLevel2() {
 	star2.position.set(-100, 320, 120);
 	star2.rotateX(-1.55);
 	scene.add(star2);
+
 	// add strong point light for stars
 	let star1Light = new THREE.PointLight(0xFFBBBB, 2, 0, 2);
 	star1Light.position.set(0,-120,0);
@@ -402,6 +408,7 @@ function loadLevel2() {
 				Math.random() * 600 - 300
 			);
 			enemyClone.position.set(position.x, position.y, position.z);
+			// Bounding box for the ship. Invisible rect used for collision detection
 			const colliderGeometry = new THREE.BoxGeometry(9, 7, 10);
 			const enemyBoundingBox = new THREE.Mesh(colliderGeometry, transparent);
 			enemyBoundingBox.translateZ(-5);
@@ -415,8 +422,8 @@ function loadLevel2() {
 	});
 }
 
+// Properly dispose of object and remove from scene
 function removeObjectFromScene(o) {
-	// Properly dispose of object and remove from scene
 	if (o.geometry) {
 		o.geometry.dispose();
 	}
@@ -426,8 +433,8 @@ function removeObjectFromScene(o) {
 	scene.remove(o);
 }
 
+// Updates the aspect ratio when the screen is resized
 function onWindowResize() {
-	// Update aspect ratio
 	let aspect = window.innerWidth / window.innerHeight;
 	topCamera.aspect = aspect;
 	weaponCamera.aspect = aspect;
@@ -438,8 +445,8 @@ function onWindowResize() {
 	weaponCameraComposer.setSize(window.innerWidth, window.innerHeight);
 }
 
+// Switch active camera
 function switchView() {
-	// switch active camera
 	if (weaponView) {
 		weaponView = false;
 		camera = topCamera;
@@ -451,6 +458,7 @@ function switchView() {
 	}
 }
 
+// Shoots a ray from the weapon and checks for collisions with enemy ships
 function shoot() {
 	if (weaponView && shootCooldown <= 0) {
 		// Reset timer
@@ -502,6 +510,7 @@ function shoot() {
 	}
 }
 
+// When the player runs out of health: end the game
 function gameOver() {
 	inGame = false;
 	gameIsOver = true;
@@ -511,6 +520,7 @@ function gameOver() {
 	document.getElementById('blocker').style.display = 'none';
 }
 
+// When the player defeats all enemy ships: end the game
 function gameWon() {
 	// Unload all objects
 	inGame = false;
@@ -531,13 +541,11 @@ function gameWon() {
 	document.getElementById('blocker').style.display = 'none';
 }
 
-function render() {
-	composer.render();
-}
-
+// This function is run every frame
 function animate() {
 	requestAnimationFrame(animate);
 
+	// reset acceleration
 	acceleration.set(0.0, 0.0, 0.0);
 
 	// Figure out how much time has passed since last frame
@@ -568,6 +576,7 @@ function animate() {
 		// update ship position
 		ship.position.x += velocity.x * delta;
 		ship.position.z += velocity.z * delta;
+
 		// update camera positions
 		weaponCamera.position.x += velocity.x * delta;
 		weaponCamera.position.z += velocity.z * delta;
@@ -652,10 +661,9 @@ function animate() {
 			const direction = p.velocity.clone();
 			direction.normalize();
 			const raycaster = new THREE.Raycaster(p.object.position, direction, 0, 1);
-			// const arrowHelper = new THREE.ArrowHelper(direction, p.object.position, 10, 0x00ff00);
-			// scene.add(arrowHelper);
 			let intersects = raycaster.intersectObject(boundingBox, false);
 			if (intersects.length > 0) {
+				// player has been hit by the projectile
 				health -= 1;
 				impactSound.play();
 				document.getElementById('health').innerHTML = 'Health: ' + health;
@@ -685,7 +693,7 @@ function animate() {
 		}
 	}
 
-	render();
+	composer.render();
 }
 
 main();
