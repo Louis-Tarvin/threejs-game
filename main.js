@@ -1,11 +1,11 @@
 'use strict';
 
-import * as THREE from '../Libraries/three.js/build/three.module.js';
-import { PointerLockControls } from '../Libraries/three.js/examples/jsm/controls/PointerLockControls.js';
-import { GLTFLoader } from '../Libraries/three.js/examples/jsm/loaders/GLTFLoader.js';
-import { EffectComposer } from '../Libraries/three.js/examples/jsm/postprocessing/EffectComposer.js';
-import { RenderPass } from '../Libraries/three.js/examples/jsm/postprocessing/RenderPass.js';
-import { UnrealBloomPass } from '../Libraries/three.js/examples/jsm/postprocessing/UnrealBloomPass.js';
+import * as THREE from './Libraries/three.js/build/three.module.js';
+import { PointerLockControls } from './Libraries/three.js/examples/jsm/controls/PointerLockControls.js';
+import { GLTFLoader } from './Libraries/three.js/examples/jsm/loaders/GLTFLoader.js';
+import { EffectComposer } from './Libraries/three.js/examples/jsm/postprocessing/EffectComposer.js';
+import { RenderPass } from './Libraries/three.js/examples/jsm/postprocessing/RenderPass.js';
+import { UnrealBloomPass } from './Libraries/three.js/examples/jsm/postprocessing/UnrealBloomPass.js';
 
 const THRUST = 40;
 const TURNRATE = 150;
@@ -181,7 +181,7 @@ function init(scene) {
 	scene.add(ambientLight);
 
 	// Objects
-	const crosshairTexture = new THREE.TextureLoader(manager).load( '../Assets/crosshair.png' );
+	const crosshairTexture = new THREE.TextureLoader(manager).load( './Assets/crosshair.png' );
 	const crosshairMaterial = new THREE.SpriteMaterial( { map: crosshairTexture } );
 	const crosshair = new THREE.Sprite(crosshairMaterial);
 	crosshair.scale.set(0.1, 0.1, 0.1);
@@ -190,7 +190,7 @@ function init(scene) {
 	// Cameras don't usually have to be added to the scene, but since it has a child it must be
 	scene.add(weaponCamera);
 
-	const loader = new GLTFLoader(manager).setPath('../Assets/models/');
+	const loader = new GLTFLoader(manager).setPath('./Assets/models/');
 	loader.load('ship.gltf', function (gltf) {
 		ship = gltf.scene;
 		scene.add(ship);
@@ -236,22 +236,22 @@ function init(scene) {
 	bgm = new THREE.Audio(listener);
 	// Load audio
 	const audioLoader = new THREE.AudioLoader();
-	audioLoader.load('../Assets/audio/bgm.wav', function(buffer) {
+	audioLoader.load('./Assets/audio/bgm.wav', function(buffer) {
 		bgm.setBuffer(buffer);
 		bgm.setLoop(true);
 		bgm.setVolume(0.5);
 	});
 	shootSound = new THREE.Audio(listener);
-	audioLoader.load('../Assets/audio/shot.wav', function(buffer) {
+	audioLoader.load('./Assets/audio/shot.wav', function(buffer) {
 		shootSound.setBuffer(buffer);
 		shootSound.setVolume(0.5);
 	});
 	explosionSound = new THREE.Audio(listener);
-	audioLoader.load('../Assets/audio/explosion.wav', function(buffer) {
+	audioLoader.load('./Assets/audio/explosion.wav', function(buffer) {
 		explosionSound.setBuffer(buffer);
 	});
 	impactSound = new THREE.Audio(listener);
-	audioLoader.load('../Assets/audio/impact.wav', function(buffer) {
+	audioLoader.load('./Assets/audio/impact.wav', function(buffer) {
 		impactSound.setBuffer(buffer);
 	});
 
@@ -262,12 +262,12 @@ function init(scene) {
 function loadLevel1() {
 	// Create skybox
 	let skyboxTextures = [
-		'../Assets/skyboxes/blue/bkg1_right.png',
-		'../Assets/skyboxes/blue/bkg1_left.png',
-		'../Assets/skyboxes/blue/bkg1_top.png',
-		'../Assets/skyboxes/blue/bkg1_bot.png',
-		'../Assets/skyboxes/blue/bkg1_front.png',
-		'../Assets/skyboxes/blue/bkg1_back.png'
+		'./Assets/skyboxes/blue/bkg1_right.png',
+		'./Assets/skyboxes/blue/bkg1_left.png',
+		'./Assets/skyboxes/blue/bkg1_top.png',
+		'./Assets/skyboxes/blue/bkg1_bot.png',
+		'./Assets/skyboxes/blue/bkg1_front.png',
+		'./Assets/skyboxes/blue/bkg1_back.png'
 	];
 
 	let cubeLoader = new THREE.CubeTextureLoader(manager);
@@ -278,7 +278,7 @@ function loadLevel1() {
 	// Create Stars
 	let starGeometry = new THREE.SphereGeometry(100, 50, 50);
 	const textureLoader = new THREE.TextureLoader();
-	let starMaterial = new THREE.MeshBasicMaterial({ map: textureLoader.load('../Assets/sun.jpg') });
+	let starMaterial = new THREE.MeshBasicMaterial({ map: textureLoader.load('./Assets/sun.jpg') });
 	let star1 = new THREE.Mesh(starGeometry, starMaterial);
 	star1.position.set(0, -120, 0);
 	star1.rotateX(1.55);
@@ -298,7 +298,7 @@ function loadLevel1() {
 	levelObjects.push(star1, star2, star1Light, star2Light);
 
 	// Create enemy ships
-	const loader = new GLTFLoader(manager).setPath('../Assets/models/');
+	const loader = new GLTFLoader(manager).setPath('./Assets/models/');
 	loader.load('enemy.glb', function (gltf) {
 		let enemy = gltf.scene;
 		const transparent = new THREE.MeshBasicMaterial({ transparent: true, opacity: 0.0 });
@@ -359,12 +359,12 @@ function loadLevel2() {
 
 	// Create skybox
 	let skyboxTextures = [
-		'../Assets/skyboxes/red/bkg_right.png',
-		'../Assets/skyboxes/red/bkg_left.png',
-		'../Assets/skyboxes/red/bkg_top.png',
-		'../Assets/skyboxes/red/bkg_bottom.png',
-		'../Assets/skyboxes/red/bkg_front.png',
-		'../Assets/skyboxes/red/bkg_back.png'
+		'./Assets/skyboxes/red/bkg_right.png',
+		'./Assets/skyboxes/red/bkg_left.png',
+		'./Assets/skyboxes/red/bkg_top.png',
+		'./Assets/skyboxes/red/bkg_bottom.png',
+		'./Assets/skyboxes/red/bkg_front.png',
+		'./Assets/skyboxes/red/bkg_back.png'
 	];
 
 	let cubeLoader = new THREE.CubeTextureLoader(manager);
@@ -375,7 +375,7 @@ function loadLevel2() {
 	// Create Stars
 	let starGeometry = new THREE.SphereGeometry(100, 50, 50);
 	const textureLoader = new THREE.TextureLoader(manager);
-	let starMaterial = new THREE.MeshBasicMaterial({ map: textureLoader.load('../Assets/sun2.jpg') });
+	let starMaterial = new THREE.MeshBasicMaterial({ map: textureLoader.load('./Assets/sun2.jpg') });
 	let star1 = new THREE.Mesh(starGeometry, starMaterial);
 	star1.position.set(20, -120, -5);
 	star1.rotateX(1.55);
@@ -395,7 +395,7 @@ function loadLevel2() {
 	levelObjects.push(star1, star2, star1Light, star2Light);
 
 	// Create enemy ships
-	const loader = new GLTFLoader(manager).setPath('../Assets/models/');
+	const loader = new GLTFLoader(manager).setPath('./Assets/models/');
 	loader.load('enemy.glb', function (gltf) {
 		let enemy = gltf.scene;
 		const transparent = new THREE.MeshBasicMaterial({ transparent: true, opacity: 0.0 });
@@ -468,7 +468,7 @@ function shoot() {
 		shootSound.play();
 
 		// Create flash
-		const flashTexture = new THREE.TextureLoader(manager).load( '../Assets/flash.png' );
+		const flashTexture = new THREE.TextureLoader(manager).load( './Assets/flash.png' );
 		const flashMaterial = new THREE.SpriteMaterial( { map: flashTexture } );
 		const flash = new THREE.Sprite(flashMaterial);
 		flash.translateZ(-5);
